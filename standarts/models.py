@@ -1,47 +1,62 @@
+from django.contrib.auth.models import User
 from django.db import models
+from django_softdelete.models import SoftDeleteModel
 
 
-class Level(models.Model):
-    level = models.CharField(max_length=255)
+class Level(SoftDeleteModel):
+    _soft_delete_cascade = True
+    _restore_soft_deleted_related_objects = True
+    level = models.CharField(max_length=255, verbose_name="Уровень физподготовки")
 
 
-class Gender(models.Model):
-    gender = models.CharField(max_length=255)
+class Gender(SoftDeleteModel):
+    _soft_delete_cascade = True
+    _restore_soft_deleted_related_objects = True
+    gender = models.CharField(max_length=255, verbose_name="Пол ученика")
 
 
-class Classes(models.Model):
-    number = models.IntegerField()
+class Classes(SoftDeleteModel):
+    _soft_delete_cascade = True
+    _restore_soft_deleted_related_objects = True
+    number = models.IntegerField(verbose_name="Класс ученика (номер)")
+    class_name = models.CharField(max_length=255, verbose_name="Класс ученика (буква)")
+    class_owner = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name="Куратор класса")
 
 
-class Students(models.Model):
-    classes = models.ForeignKey(Classes, on_delete=models.CASCADE)
-    gender = models.ForeignKey(Gender, on_delete=models.CASCADE)
-    recruitment_year = models.DateField()
-    class_name = models.CharField(max_length=255)
-    birthday = models.DateField()
+class Students(SoftDeleteModel):
+    _soft_delete_cascade = True
+    _restore_soft_deleted_related_objects = True
+    classes = models.ForeignKey(Classes, on_delete=models.CASCADE, verbose_name="Класс ученика (номер)")
+    gender = models.ForeignKey(Gender, on_delete=models.CASCADE, verbose_name="Пол ученика")
+    recruitment_year = models.DateField(verbose_name="Год набора")
+    birthday = models.DateField(verbose_name="Дата рождения ученика")
 
 
-class Grades(models.Model):
-    grade = models.CharField(max_length=255)
+class Grades(SoftDeleteModel):
+    _soft_delete_cascade = True
+    _restore_soft_deleted_related_objects = True
+    grade = models.CharField(max_length=255, verbose_name="Оценка")
 
 
-class Standards(models.Model):
-    name = models.CharField(max_length=255)
-    description = models.TextField()
-    has_numeric_value = models.BooleanField()
+class Standards(SoftDeleteModel):
+    _soft_delete_cascade = True
+    _restore_soft_deleted_related_objects = True
+    who_added = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name="Кто добавил норматив")
+    name = models.CharField(max_length=255, verbose_name="Название норматива")
+    has_numeric_value = models.BooleanField(verbose_name="Указывает, вводится ли конкретный числовой результат")
 
 
-class StandardsValues(models.Model):
-    standard = models.ForeignKey(Standards, on_delete=models.CASCADE)
-    classes = models.ForeignKey(Classes, on_delete=models.CASCADE)
-    gender = models.ForeignKey(Gender, on_delete=models.CASCADE)
-    level = models.ForeignKey(Level, on_delete=models.CASCADE)
-    value = models.FloatField()
+class StandardsValues(SoftDeleteModel):
+    standard = models.ForeignKey(Standards, on_delete=models.CASCADE, verbose_name="Норматив")
+    classes = models.ForeignKey(Classes, on_delete=models.CASCADE, verbose_name="Класс")
+    gender = models.ForeignKey(Gender, on_delete=models.CASCADE, verbose_name="Пол ученика")
+    level = models.ForeignKey(Level, on_delete=models.CASCADE, verbose_name="Уровень физподготовки")
+    value = models.FloatField(verbose_name="Значение")
 
 
-class StudentsStandards(models.Model):
-    student = models.ForeignKey(Students, on_delete=models.CASCADE)
-    standard = models.ForeignKey(Standards, on_delete=models.CASCADE)
-    classes = models.ForeignKey(Classes, on_delete=models.CASCADE)
-    grade = models.ForeignKey(Grades, on_delete=models.CASCADE)
-    value = models.FloatField()
+class StudentsStandards(SoftDeleteModel):
+    student = models.ForeignKey(Students, on_delete=models.CASCADE, verbose_name="Ученик")
+    standard = models.ForeignKey(Standards, on_delete=models.CASCADE, verbose_name="Норматив")
+    classes = models.ForeignKey(Classes, on_delete=models.CASCADE, verbose_name="Класс")
+    grade = models.ForeignKey(Grades, on_delete=models.CASCADE, verbose_name="Оценка")
+    value = models.FloatField(verbose_name="Значение")
