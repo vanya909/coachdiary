@@ -13,10 +13,12 @@ EXTERNAL_APPS = [
 
 LOCAL_APPS = [
     "auth.users",
+    "standarts",
 ]
 
 INSTALLED_APPS = [
     *DJANGO_APPS,
     *EXTERNAL_APPS,
-    *LOCAL_APPS
+    *LOCAL_APPS,
+    'corsheaders',
 ]
