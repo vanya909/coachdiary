@@ -75,6 +75,21 @@ argon2 = ["argon2-cffi (>=19.1.0)"]
 bcrypt = ["bcrypt"]
 
 [[package]]
+name = "django-cors-headers"
+version = "4.3.1"
+description = "django-cors-headers is a Django application for handling the server headers required for Cross-Origin Resource Sharing (CORS)."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "django-cors-headers-4.3.1.tar.gz", hash = "sha256:0bf65ef45e606aff1994d35503e6b677c0b26cafff6506f8fd7187f3be840207"},
+    {file = "django_cors_headers-4.3.1-py3-none-any.whl", hash = "sha256:0b1fd19297e37417fc9f835d39e45c8c642938ddba1acce0c1753d3edef04f36"},
+]
+
+[package.dependencies]
+asgiref = ">=3.6"
+Django = ">=3.2"
+
+[[package]]
 name = "django-extensions"
 version = "3.2.3"
 description = "Extensions for Django"
@@ -87,6 +102,17 @@ files = [
 
 [package.dependencies]
 Django = ">=3.2"
+
+[[package]]
+name = "django-soft-delete"
+version = "1.0.12"
+description = "Soft delete models, managers, queryset for Django"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "django-soft-delete-1.0.12.tar.gz", hash = "sha256:5afe70c0f5ce066c0e287c39806fb949ab66e73305a11b88d4c533247f3b96f0"},
+    {file = "django_soft_delete-1.0.12-py3-none-any.whl", hash = "sha256:2b28ab95d18847ea301c46f6f172ea878490fdf12261c697ec7e44b9d652f866"},
+]
 
 [[package]]
 name = "djangorestframework"
@@ -380,4 +406,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "b3ae0b51801bc913bf5cbefe5aa79d801d277fc914770320ec91e8acdc1a1da3"
+content-hash = "701232a703f42637097499834b1bfb7823c482992fbbefae2c0f7cf4361c854b"
