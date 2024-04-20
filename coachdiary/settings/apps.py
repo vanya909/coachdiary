@@ -9,16 +9,17 @@ DJANGO_APPS = [
 
 EXTERNAL_APPS = [
     "rest_framework",
+    "corsheaders",
+    "django_extensions",
 ]
 
 LOCAL_APPS = [
     "auth.users",
-    "standarts",
+    "standards",
 ]
 
 INSTALLED_APPS = [
     *DJANGO_APPS,
     *EXTERNAL_APPS,
     *LOCAL_APPS,
-    'corsheaders',
 ]
