@@ -5,6 +5,8 @@ from . import views
 
 standards_router = routers.DefaultRouter()
 standards_router.register(r"standards", views.StandardValueViewSet)
+standards_router.register(r"students", views.StudentViewSet)
+standards_router.register(r"classes", views.StudentClassViewset)
 
 urlpatterns = [
     path("", include(standards_router.urls)),
