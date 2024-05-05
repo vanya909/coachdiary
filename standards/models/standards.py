@@ -1,11 +1,12 @@
 import datetime
 from django.db import models
-from django_softdelete.models import SoftDeleteModel
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.core.exceptions import ValidationError
 
+from .base import BaseModel
 
-class StudentClass(SoftDeleteModel):
+
+class StudentClass(BaseModel):
     number = models.IntegerField(
         verbose_name="Номер учебного класса",
         validators=(
@@ -46,7 +47,7 @@ class StudentClass(SoftDeleteModel):
         return f"{self.number}{self.class_name}"
 
 
-class Student(SoftDeleteModel):
+class Student(BaseModel):
     full_name = models.CharField(
         max_length=1024,
         verbose_name="Полное имя ученика",
@@ -77,15 +78,17 @@ class Student(SoftDeleteModel):
         )
 
 
-class Standard(SoftDeleteModel):
+class Standard(BaseModel):
+    name = models.CharField(
+        max_length=255,
+        unique=True,
+        primary_key=True,
+        verbose_name="Название норматива",
+    )
     who_added = models.ForeignKey(
         "users.User",
         on_delete=models.PROTECT,
         verbose_name="Кто добавил норматив",
-    )
-    name = models.CharField(
-        max_length=255,
-        verbose_name="Название норматива",
     )
     has_numeric_value = models.BooleanField(
         verbose_name="Является ли это умением или нормативом",
@@ -96,7 +99,7 @@ class Standard(SoftDeleteModel):
         return self.name
 
 
-class StandardValue(SoftDeleteModel):
+class StandardValue(BaseModel):
     standard = models.ForeignKey(
         Standard,
         on_delete=models.CASCADE,
@@ -107,12 +110,44 @@ class StandardValue(SoftDeleteModel):
         on_delete=models.CASCADE,
         verbose_name="Класс",
     )
-    level = models.CharField(
-        max_length=255,
-        verbose_name="Уровень физподготовки",
+
+    def __str__(self) -> str:
+        return (
+            f"Норматив: {self.standard}, "
+            f"Класс: {self.student_class}, "
+        )
+
+
+class Level(BaseModel):
+    level_number = models.IntegerField(
+        validators=(
+            MinValueValidator(1),
+        ),
+        verbose_name="Номер уровня норматива",
     )
-    value = models.FloatField(
-        verbose_name="Значение",
+    low_level_value = models.FloatField(
+        validators=(
+            MinValueValidator(0),
+        ),
+        verbose_name="Минимальное значение для уровня",
+    )
+    middle_level_value = models.FloatField(
+        validators=(
+            MinValueValidator(0),
+        ),
+        verbose_name="Среднее значение для уровня",
+    )
+    high_level_value = models.FloatField(
+        validators=(
+            MinValueValidator(0),
+        ),
+        verbose_name="Лучшее значение для уровня",
+    )
+    standard = models.ForeignKey(
+        StandardValue,
+        on_delete=models.CASCADE,
+        related_name="levels",
+        verbose_name="Норматив, к которому относится данный уровень",
     )
 
     class Gender(models.TextChoices):
@@ -121,19 +156,11 @@ class StandardValue(SoftDeleteModel):
     gender = models.CharField(
         max_length=1,
         choices=Gender.choices,
-        verbose_name="Пол ученика",
+        verbose_name="Пол учеников, для которого рассчитан данный уровень",
     )
 
-    def __str__(self) -> str:
-        return (
-            f"Норматив: {self.standard}, "
-            f"Класс: {self.student_class}, "
-            f"Уровень ФП: {self.level}, "
-            f"Значение: {self.value}"
-        )
 
-
-class StudentStandard(SoftDeleteModel):
+class StudentStandard(BaseModel):
     student = models.ForeignKey(
         Student,
         on_delete=models.CASCADE,

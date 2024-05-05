@@ -90,6 +90,20 @@ asgiref = ">=3.6"
 Django = ">=3.2"
 
 [[package]]
+name = "django-dirtyfields"
+version = "1.9.2"
+description = "Tracking dirty fields on a Django model instance."
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "django-dirtyfields-1.9.2.tar.gz", hash = "sha256:eb2dbed51c2a9bc23e84d19797f4cd074f59c935f8f39bb716d185dc6b86401a"},
+    {file = "django_dirtyfields-1.9.2-py3-none-any.whl", hash = "sha256:93b272eab993f813faabf3ea842ebfad63a03712e7213291aebdbddc5a012a5d"},
+]
+
+[package.dependencies]
+Django = ">=2.0"
+
+[[package]]
 name = "django-extensions"
 version = "3.2.3"
 description = "Extensions for Django"
@@ -127,6 +141,16 @@ files = [
 
 [package.dependencies]
 django = ">=3.0"
+
+[[package]]
+name = "drf-writable-nested"
+version = "0.7.0"
+description = "Writable nested helpers for django-rest-framework's serializers"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "drf_writable_nested-0.7.0-py3-none-any.whl", hash = "sha256:154c0381e8a3a477e0fd539d5e1caf8ff4c1097a9c0c0fe741d4858b11b0455b"},
+]
 
 [[package]]
 name = "executing"
@@ -406,4 +430,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "701232a703f42637097499834b1bfb7823c482992fbbefae2c0f7cf4361c854b"
+content-hash = "38c2aa2635cebeaa4257457d46ea600938b89899e99d3f06b5959b3722d5d375"
