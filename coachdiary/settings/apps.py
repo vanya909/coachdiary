@@ -11,6 +11,7 @@ EXTERNAL_APPS = [
     "rest_framework",
     "corsheaders",
     "django_extensions",
+    "drf_spectacular"
 ]
 
 LOCAL_APPS = [
