@@ -6,6 +6,41 @@ from drf_writable_nested.serializers import WritableNestedModelSerializer
 from .. import models
 
 
+class StudentStandardSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.StudentStandard
+        fields = ['standard', 'grade', 'value']
+
+class StudentSerializer(serializers.ModelSerializer):
+    student_standard = StudentStandardSerializer(source='studentstandard_set', many=True, read_only=True)
+
+    class Meta:
+        model = models.Student
+        fields = ['full_name', 'gender', 'student_standard']
+
+class StandardValueSerializer(serializers.ModelSerializer):
+    student_class = serializers.StringRelatedField()
+    standard = serializers.StringRelatedField()
+
+    class Meta:
+        model = models.StandardValue
+        fields = ['standard', 'student_class']
+
+class StandardValueSerializer(serializers.ModelSerializer):
+    student_class = serializers.StringRelatedField()
+    standard = serializers.StringRelatedField()
+
+    class Meta:
+        model = models.StandardValue
+        fields = ['standard', 'student_class']
+
+class StudentClassSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.StudentClass
+        fields = ['number', 'class_name', 'class_owner', 'recruitment_year']
+
+# ----------------CRUDS-----------------------------
+
 class StandardSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -83,3 +118,6 @@ class StandardValueSerializer(WritableNestedModelSerializer):
             standard.levels.create(**single_level_data)
 
         return standard
+    
+
+
