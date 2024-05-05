@@ -1,5 +1,6 @@
 from rest_framework import serializers, exceptions
 
+from auth.users.api.serializers import UserSerializer
 from coachdiary.api.utils.serializers import get_id_serializer_for_model
 from drf_writable_nested.serializers import WritableNestedModelSerializer
 
@@ -83,3 +84,29 @@ class StandardValueSerializer(WritableNestedModelSerializer):
             standard.levels.create(**single_level_data)
 
         return standard
+
+
+class StudentClassSerializer(serializers.ModelSerializer):
+    class_owner = UserSerializer()
+
+    class Meta:
+        model = models.StudentClass
+        fields = (
+            "class_name",
+            "number",
+            "class_owner",
+            "recruitment_year",
+        )
+
+
+class StudentSerializer(WritableNestedModelSerializer):
+    student_class = get_id_serializer_for_model(models.StudentClass)
+
+    class Meta:
+        model = models.Student
+        fields = (
+            "full_name",
+            "student_class",
+            "birthday",
+            "gender",
+        )
