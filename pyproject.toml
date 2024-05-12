@@ -17,6 +17,7 @@ django-soft-delete = "^1.0.12"
 drf-writable-nested = "^0.7.0"
 django-dirtyfields = "^1.9.2"
 drf-spectacular = "^0.27.2"
+django-filter = "^24.2"
 
 
 [tool.poetry.group.dev.dependencies]

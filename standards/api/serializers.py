@@ -8,7 +8,6 @@ from .. import models
 
 
 class StandardSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = models.Standard
         fields = (
@@ -30,8 +29,18 @@ class StandardSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
-class LevelSerializer(serializers.ModelSerializer):
+class StudentStandardSerializer(serializers.ModelSerializer):
+    standard = StandardSerializer()
 
+    class Meta:
+        model = models.StudentStandard
+        fields = (
+            'standard',
+            'grade',
+            'value')
+
+
+class LevelSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Level
         fields = (
@@ -99,8 +108,15 @@ class StudentClassSerializer(serializers.ModelSerializer):
         )
 
 
+class FullClassNameSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.StudentClass
+        fields = ('number', 'class_name')
+
+
 class StudentSerializer(WritableNestedModelSerializer):
-    student_class = get_id_serializer_for_model(models.StudentClass)
+    # student_class = get_id_serializer_for_model(models.StudentClass)
+    student_class = FullClassNameSerializer()
 
     class Meta:
         model = models.Student
