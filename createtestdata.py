@@ -5,7 +5,7 @@ from standards.models.standards import StudentClass, Student, Standard, Standard
 
 def create_test_data():
     # Create a test user
-    test_user = User.objects.create_user(email='testuser@example.com', password='password')
+    test_user = User.objects.create_user(email='testuser@example.com', password='password', name='Петр Петров Петрович')
 
     # Create test StudentClass instances
     student_classes = [
