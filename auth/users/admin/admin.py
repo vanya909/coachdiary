@@ -30,7 +30,7 @@ class CustomUserAdmin(
         "email",
     )
     fieldsets = (
-        (None, {"fields": ("email", "password")}),
+        (None, {"fields": ("name", "email", "password")}),
         (
             "Пермиссии",
             {
@@ -46,7 +46,7 @@ class CustomUserAdmin(
             None,
             {
                 "classes": ("wide",),
-                "fields": ("email", "password1", "password2"),
+                "fields": ("name", "email", "password1", "password2"),
             },
         ),
     )
