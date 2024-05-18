@@ -4,6 +4,7 @@ from ..models import Student
 from datetime import datetime
 from django.core.validators import MinValueValidator, MaxValueValidator
 
+
 class StudentFilter(filters.FilterSet):
     gender = filters.CharFilter(field_name="gender", lookup_expr="iexact")
     birthdate_lower = filters.NumberFilter(field_name="birthday", lookup_expr='gte', method='filter_by_year_gte')

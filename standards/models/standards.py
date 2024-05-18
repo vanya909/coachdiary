@@ -2,7 +2,7 @@ import datetime
 from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.core.exceptions import ValidationError
-
+from django.utils import timezone
 from .base import BaseModel
 
 
@@ -24,18 +24,11 @@ class StudentClass(BaseModel):
         on_delete=models.PROTECT,
         verbose_name="Куратор класса",
     )
-    recruitment_year = models.IntegerField(
-        verbose_name="Год набора",
-        validators=(
-            MinValueValidator(2000),
-        )
-    )
 
-    class Meta:
-        unique_together = (
-            "number",
-            "class_name",
-        )
+    @property
+    def recruitment_year(self):
+        current_year = timezone.now().year
+        return current_year - self.number
 
     def clean(self):
         if self.recruitment_year > datetime.date.today().year:
@@ -45,6 +38,11 @@ class StudentClass(BaseModel):
 
     def __str__(self) -> str:
         return f"{self.number}{self.class_name}"
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.recruitment_date = self.recruitment_year
+        super().save(*args, **kwargs)
 
 
 class Student(BaseModel):
@@ -65,6 +63,7 @@ class Student(BaseModel):
     class Gender(models.TextChoices):
         male = "m", "Мужской"
         female = "f", "Женский"
+
     gender = models.CharField(
         max_length=1,
         choices=Gender.choices,
@@ -81,8 +80,6 @@ class Student(BaseModel):
 class Standard(BaseModel):
     name = models.CharField(
         max_length=255,
-        unique=True,
-        primary_key=True,
         verbose_name="Название норматива",
     )
     who_added = models.ForeignKey(
@@ -101,7 +98,7 @@ class Standard(BaseModel):
 
 class StandardValue(BaseModel):
     standard = models.ForeignKey(
-        Standard,
+        to=Standard,
         on_delete=models.CASCADE,
         verbose_name="Норматив",
     )
@@ -153,6 +150,7 @@ class Level(BaseModel):
     class Gender(models.TextChoices):
         male = "m", "Мужской"
         female = "f", "Женский"
+
     gender = models.CharField(
         max_length=1,
         choices=Gender.choices,

@@ -1,6 +1,6 @@
 import json
 
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.middleware.csrf import get_token
 from drf_spectacular.utils import extend_schema
 from rest_framework import response, status, views, viewsets, mixins, permissions
@@ -81,3 +81,21 @@ class UserProfileViewSet(views.APIView):
         user.set_password(serializer.validated_data['new_password'])
         user.save()
         return response.Response({"success": "Password successfully set"}, status=status.HTTP_200_OK)
+
+
+class UserLogoutView(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    @extend_schema(
+        responses={200: 'User successfully logged out'}
+    )
+    def post(self, request):
+        """Logout user."""
+        logout(request)
+        return response.Response(
+            {
+                "status": "ok",
+                "details": "Logged out successfully.",
+            },
+            status=status.HTTP_200_OK
+        )
