@@ -46,3 +46,18 @@ class ChangePasswordSerializer(serializers.Serializer):
         if not check_password(data['current_password'], self.context['request'].user.password):
             raise serializers.ValidationError("Current password is incorrect.")
         return data
+
+
+class ChangeUserDetailsSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=False)
+    name = serializers.CharField(required=False)
+
+    def validate_email(self, value):
+        if models.User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("This email is already in use.")
+        return value
+
+    def validate(self, data):
+        if not data.get('email') and not data.get('name'):
+            raise serializers.ValidationError("At least one field (email or name) must be provided.")
+        return data

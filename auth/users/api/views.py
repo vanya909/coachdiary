@@ -8,7 +8,8 @@ from rest_framework.exceptions import ValidationError
 from auth.users import models
 from django.contrib.auth.hashers import check_password
 
-from auth.users.api.serializers import UserSerializer, UserCreateSerializer, ChangePasswordSerializer
+from auth.users.api.serializers import UserSerializer, UserCreateSerializer, ChangePasswordSerializer, \
+    ChangeUserDetailsSerializer
 
 
 class UserLoginView(views.APIView):
@@ -62,6 +63,10 @@ class UserViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     request=ChangePasswordSerializer,
     responses={200: UserSerializer}
 )
+@extend_schema(
+    request=ChangePasswordSerializer,
+    responses={200: UserSerializer}
+)
 class UserProfileViewSet(views.APIView):
     """Changes a password of current user."""
     serializer_class = UserSerializer
@@ -75,12 +80,29 @@ class UserProfileViewSet(views.APIView):
         return response.Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request):
+        # Handle password change
         serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         user = request.user
         user.set_password(serializer.validated_data['new_password'])
         user.save()
         return response.Response({"success": "Password successfully set"}, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        request=ChangeUserDetailsSerializer,
+        responses={200: UserSerializer}
+    )
+    def patch(self, request):
+        # Handle name and/or email change
+        serializer = ChangeUserDetailsSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        if 'email' in serializer.validated_data:
+            user.email = serializer.validated_data['email']
+        if 'name' in serializer.validated_data:
+            user.name = serializer.validated_data['name']
+        user.save()
+        return response.Response({"success": "User details successfully updated"}, status=status.HTTP_200_OK)
 
 
 class UserLogoutView(views.APIView):
