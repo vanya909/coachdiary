@@ -187,29 +187,32 @@ class StudentStandardCreateSerializer(serializers.ModelSerializer):
         except models.Standard.DoesNotExist:
             raise serializers.ValidationError("Standard does not exist")
 
-        # Calculate the grade based on the value, standard, and student's gender
-        levels = models.Level.objects.filter(
-            standard__standard=standard, gender=student.gender
-        ).order_by('level_number')
+        if not standard.has_numeric_value:
+            data['grade'] = value
+        else:
+            levels = models.Level.objects.filter(
+                standard__standard=standard, gender=student.gender
+            ).order_by('level_number')
 
-        if not levels.exists():
-            raise serializers.ValidationError("No levels found for this standard and gender")
+            if not levels.exists():
+                raise serializers.ValidationError("No levels found for this standard and gender")
 
-        grade = None
-        for level in levels:
-            if value >= level.low_level_value:
-                if value >= level.high_level_value:
-                    grade = '5'
-                elif value >= level.middle_level_value:
-                    grade = '4'
-                else:
-                    grade = '3'
-                break
+            grade = None
+            for level in levels:
+                if value >= level.low_level_value:
+                    if value >= level.high_level_value:
+                        grade = '5'
+                    elif value >= level.middle_level_value:
+                        grade = '4'
+                    else:
+                        grade = '3'
+                    break
 
-        if grade is None:
-            grade = '2'  # Default to the lowest grade if no level matches
+            if grade is None:
+                grade = '2'  # Default to the lowest grade if no level matches
 
-        data['grade'] = grade
+            data['grade'] = grade
+
         data['student'] = student
         data['standard'] = standard
 
