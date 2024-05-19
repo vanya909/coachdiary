@@ -67,7 +67,6 @@ class StandardValueSerializer(WritableNestedModelSerializer):
         fields = (
             "id",
             "standard",
-            "student_class",
             "levels"
 
         )
@@ -148,24 +147,79 @@ class StudentSerializer(WritableNestedModelSerializer):
 
 
 class StudentResultSerializer(serializers.ModelSerializer):
-    student_class = serializers.SerializerMethodField()
-    standard = serializers.SerializerMethodField()
-    value = serializers.CharField(source='studentstandard.value')
-    grade = serializers.CharField(source='studentstandard.grade')
+    student_class = FullClassNameSerializer()
+    student_standards = StudentStandardSerializer(source='studentstandard_set', many=True)
 
     class Meta:
         model = models.Student
-        fields = ['id', 'full_name', 'student_class', 'birthday', 'gender', 'standard', 'value', 'grade']
+        fields = ['id', 'full_name', 'student_class', 'birthday', 'gender', 'student_standards']
 
-    def get_student_class(self, obj):
-        return {
-            "id": obj.student_class.id,
-            "number": obj.student_class.number,
-            "class_name": obj.student_class.class_name
-        }
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        if representation.get('student_standards'):
+            for standard in representation['student_standards']:
+                representation.update(standard)
+            representation.pop('student_standards')
+        return representation
 
-    def get_standard(self, obj):
-        student_standard = obj.studentstandards.first()  # assuming one-to-one relationship
-        return {
-            "id": student_standard.standard.id
-        }
+
+class StudentStandardCreateSerializer(serializers.ModelSerializer):
+    student_id = serializers.IntegerField(write_only=True)
+    standard_id = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model = models.StudentStandard
+        fields = ['student_id', 'standard_id', 'value', 'grade']
+        read_only_fields = ['grade']
+
+    def validate(self, data):
+        student_id = data.get('student_id')
+        standard_id = data.get('standard_id')
+        value = data.get('value')
+
+        try:
+            student = models.Student.objects.get(id=student_id)
+        except models.Student.DoesNotExist:
+            raise serializers.ValidationError("Student does not exist")
+
+        try:
+            standard = models.Standard.objects.get(id=standard_id)
+        except models.Standard.DoesNotExist:
+            raise serializers.ValidationError("Standard does not exist")
+
+        # Calculate the grade based on the value, standard, and student's gender
+        levels = models.Level.objects.filter(
+            standard__standard=standard, gender=student.gender
+        ).order_by('level_number')
+
+        if not levels.exists():
+            raise serializers.ValidationError("No levels found for this standard and gender")
+
+        grade = None
+        for level in levels:
+            if value >= level.low_level_value:
+                if value >= level.high_level_value:
+                    grade = '5'
+                elif value >= level.middle_level_value:
+                    grade = '4'
+                else:
+                    grade = '3'
+                break
+
+        if grade is None:
+            grade = '2'  # Default to the lowest grade if no level matches
+
+        data['grade'] = grade
+        data['student'] = student
+        data['standard'] = standard
+
+        return data
+
+    def create(self, validated_data):
+        student_standard = models.StudentStandard.objects.create(
+            student=validated_data['student'],
+            standard=validated_data['standard'],
+            value=validated_data['value'],
+            grade=validated_data['grade']
+        )
+        return student_standard

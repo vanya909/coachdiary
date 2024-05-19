@@ -1,8 +1,7 @@
-from django.db.models import Prefetch
 from rest_framework import mixins, viewsets, permissions, status
 from django_filters import rest_framework as filters
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from . import serializers
@@ -60,7 +59,8 @@ class StudentViewSet(
         except models.Standard.DoesNotExist:
             return Response({"error": "Standard not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        students = models.Student.objects.filter(student_class__id__in=class_ids, student_class__class_owner=request.user)
+        students = models.Student.objects.filter(student_class__id__in=class_ids,
+                                                 student_class__class_owner=request.user)
         results = models.StudentStandard.objects.filter(student__in=students, standard=standard)
 
         response_data = []
@@ -109,3 +109,58 @@ class StudentStandardsViewSet(viewsets.ViewSet):
         student_standards = models.StudentStandard.objects.filter(student=student)
         serializer = StudentStandardSerializer(student_standards, many=True)
         return Response(serializer.data)
+
+
+class StudentsResultsViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = serializers.StudentResultSerializer
+
+    def list(self, request):
+        class_ids = request.query_params.getlist('class_id[]')
+        standard_id = request.query_params.get('standard_id')
+
+        if not class_ids or not standard_id:
+            return Response({"detail": "class_id and standard_id are required."}, status=400)
+
+        students_results = models.StudentStandard.objects.filter(
+            student__student_class__id__in=class_ids,
+            standard_id=standard_id
+        ).select_related('student', 'standard')
+
+        serializer = StudentStandardSerializer(students_results, many=True)
+        return Response(serializer.data)
+
+
+class StudentResultsCreateViewSet(viewsets.ViewSet):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def create(self, request, *args, **kwargs):
+        serializer = serializers.StudentStandardCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            student_result = serializer.save()
+            return Response(
+                {"detail": "Student result record created successfully.",
+                 "data": serializers.StudentStandardCreateSerializer(student_result).data},
+                status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class StudentResultsUpdateViewSet(viewsets.ViewSet):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def update(self, request, pk=None):
+        try:
+            student_result = models.StudentStandard.objects.get(pk=pk)
+        except models.StudentStandard.DoesNotExist:
+            return Response({"detail": "Student result record does not exist."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = serializers.StudentStandardCreateSerializer(student_result, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {"detail": "Student result record updated successfully.",
+                 "data": serializer.data},
+                status=status.HTTP_200_OK
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
