@@ -127,21 +127,24 @@ class Level(BaseModel):
             MinValueValidator(0),
         ),
         verbose_name="Минимальное значение для уровня",
+        null=True, blank=True
     )
     middle_level_value = models.FloatField(
         validators=(
             MinValueValidator(0),
         ),
         verbose_name="Среднее значение для уровня",
+        null=True, blank=True
     )
     high_level_value = models.FloatField(
         validators=(
             MinValueValidator(0),
         ),
         verbose_name="Лучшее значение для уровня",
+        null=True, blank=True
     )
     standard = models.ForeignKey(
-        StandardValue,
+        Standard,
         on_delete=models.CASCADE,
         related_name="levels",
         verbose_name="Норматив, к которому относится данный уровень",
@@ -157,6 +160,22 @@ class Level(BaseModel):
         verbose_name="Пол учеников, для которого рассчитан данный уровень",
     )
 
+    def clean(self):
+        if self.standard.has_numeric_value:
+            if any([self.low_level_value, self.middle_level_value, self.high_level_value]):
+                raise ValidationError(
+                    "Для нормативов с числовым значением не следует указывать уровневые значения."
+                )
+        else:
+            if not all([self.low_level_value, self.middle_level_value, self.high_level_value]):
+                raise ValidationError(
+                    "Для нормативов без числового значения необходимо указать все уровневые значения."
+                )
+
+    def save(self, *args, **kwargs):
+        self.clean()  # Ensure the clean method is called
+        super().save(*args, **kwargs)
+
 
 class StudentStandard(BaseModel):
     student = models.ForeignKey(
@@ -169,16 +188,42 @@ class StudentStandard(BaseModel):
         on_delete=models.CASCADE,
         verbose_name="Норматив",
     )
-    grade = models.CharField(
-        max_length=255,
+    grade = models.IntegerField(
         verbose_name="Оценка",
+        validators=[MinValueValidator(0)],
     )
     value = models.FloatField(
         verbose_name="Значение",
     )
+    level = models.ForeignKey(
+        Level,
+        on_delete=models.CASCADE,
+        verbose_name="Уровень",
+        null=True,
+        blank=True
+    )
+
+    def save(self, *args, **kwargs):
+        if isinstance(self.grade, float):
+            self.grade = round(self.grade)
+
+        student_class_number = self.student.student_class.number
+
+        try:
+            standard_value = Standard.objects.get(
+                name=self.standard
+            )
+            self.level = Level.objects.get(
+                standard=standard_value,
+                level_number=student_class_number
+            )
+        except (StandardValue.DoesNotExist, Level.DoesNotExist):
+            self.level = None
+
+        super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return (
             f"{self.student} - {self.standard} "
-            f"({self.value}, Оценка: {self.grade})"
+            f"({self.value}, Оценка: {self.grade}, Уровень: {self.level})"
         )

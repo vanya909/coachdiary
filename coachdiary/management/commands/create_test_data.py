@@ -1,5 +1,6 @@
 import datetime
 import random
+import time
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from standards.models import StudentClass, Student, Standard, StandardValue, Level, StudentStandard
@@ -10,6 +11,9 @@ class Command(BaseCommand):
     help = "Create test data for models"
 
     def handle(self, *args, **kwargs):
+        # Start timing
+        start_time = time.time()
+
         # Clear existing data to avoid constraint issues
         StudentStandard.objects.all().delete()
         Level.objects.all().delete()
@@ -65,27 +69,44 @@ class Command(BaseCommand):
             )
             standards.append(standard)
 
-        # Create standard values
-        standard_values = []
-        for standard in standards:
-            for student_class in student_classes:
-                standard_value = StandardValue.objects.create(
-                    standard=standard,
-                    student_class=student_class,
-                )
-                standard_values.append(standard_value)
+        # # Create standard values
+        # standard_values = []
+        # for standard in standards:
+        #     for student_class in student_classes:
+        #         standard_value = StandardValue.objects.create(
+        #             standard=standard,
+        #             student_class=student_class,
+        #         )
+        #         standard_values.append(standard_value)
 
         # Create levels
-        for standard_value in standard_values:
+        for standard_value in standards:
+            has_numeric_value = standard_value.has_numeric_value
+            created_levels_count = 0  # Track the number of levels created for this standard
+
             for i in range(1, 6):
-                Level.objects.create(
-                    level_number=i,
-                    low_level_value=random.uniform(0, 10),
-                    middle_level_value=random.uniform(10, 20),
-                    high_level_value=random.uniform(20, 30),
-                    standard=standard_value,
-                    gender=random.choice([Level.Gender.male, Level.Gender.female]),
-                )
+                if created_levels_count >= 2:
+                    break  # Maximum 2 levels created, so exit loop
+
+                if has_numeric_value:
+                    # Create Level without low, middle, and high level values
+                    Level.objects.create(
+                        level_number=i,
+                        standard=standard_value,
+                        gender=random.choice([Level.Gender.male, Level.Gender.female]),
+                    )
+                    created_levels_count += 1  # Increment count for each level created
+                else:
+                    # Create Level with low, middle, and high level values
+                    Level.objects.create(
+                        level_number=i,
+                        low_level_value=random.uniform(0, 10),
+                        middle_level_value=random.uniform(10, 20),
+                        high_level_value=random.uniform(20, 30),
+                        standard=standard_value,
+                        gender=random.choice([Level.Gender.male, Level.Gender.female]),
+                    )
+                    created_levels_count += 1  # Increment count for each level created
 
         # Create student standards
         for student in students:
@@ -93,11 +114,15 @@ class Command(BaseCommand):
                 StudentStandard.objects.create(
                     student=student,
                     standard=standard,
-                    grade=random.choice(['A', 'B', 'C', 'D', 'E']),
+                    grade=round(random.uniform(2, 5)),  # Ensure grade is rounded to nearest integer
                     value=random.uniform(0, 100),
                 )
 
-        self.stdout.write(self.style.SUCCESS('Test data created successfully.'))
+        # Calculate elapsed time
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+
+        self.stdout.write(self.style.SUCCESS(f'Test data created successfully in {elapsed_time:.2f} seconds.'))
 
 # To run this script, save it as a management command in your Django app (e.g., `your_app/management/commands/create_test_data.py`),
 # and then run it with the command: `python manage.py create_test_data`.

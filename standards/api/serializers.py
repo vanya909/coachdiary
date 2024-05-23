@@ -68,7 +68,6 @@ class StandardValueSerializer(WritableNestedModelSerializer):
             "id",
             "standard",
             "levels"
-
         )
         read_only_fields = (
             "id",
@@ -79,16 +78,29 @@ class StandardValueSerializer(WritableNestedModelSerializer):
             levels_data = attrs.get("levels", [])
             is_numeric_value = attrs["standard"]["has_numeric_value"]
 
-            if not is_numeric_value and levels_data:
-                raise exceptions.ValidationError(
-                    "Умение не поддерживает уровни. "
-                    "Либо выберите норматив, либо не задавайте уровни.",
-                )
+            if is_numeric_value:
+                for level in levels_data:
+                    if any([level.get('low_level_value') is not None,
+                            level.get('middle_level_value') is not None,
+                            level.get('high_level_value') is not None]):
+                        raise exceptions.ValidationError(
+                            "Для навыков не поддерживаются значения уровней. "
+                            "Заполните только номер уровня."
+                        )
+            else:
+                for level in levels_data:
+                    if not all([level.get('low_level_value') is not None,
+                                level.get('middle_level_value') is not None,
+                                level.get('high_level_value') is not None]):
+                        raise exceptions.ValidationError(
+                            "Для нормативов необходимо задать значения уровней: "
+                            "Минимальное, Среднее и Лучшее."
+                        )
 
         return super().validate(attrs)
 
     def create(self, validated_data: dict):
-        levels_data = validated_data.pop("levels")
+        levels_data = validated_data.pop("levels", [])
         standard = super().create(validated_data)
 
         for single_level_data in levels_data:
@@ -114,6 +126,23 @@ class StudentClassSerializer(serializers.ModelSerializer):
             raise ValidationError("Only the class owner can add students to this class.")
 
         return student_class
+
+    def update(self, instance, validated_data):
+        request_user = self.context['request'].user
+
+        if instance.class_owner != request_user:
+            raise ValidationError("Only the class owner can update this class.")
+
+        # Update instance fields with validated data
+        instance.number = validated_data.get('number', instance.number)
+        instance.class_name = validated_data.get('class_name', instance.class_name)
+
+        # Ensure the class_owner is set to the current user
+        instance.class_owner = request_user
+
+        # Save the updated instance
+        instance.save()
+        return instance
 
 
 class FullClassNameSerializer(serializers.ModelSerializer):
@@ -144,6 +173,29 @@ class StudentSerializer(WritableNestedModelSerializer):
 
         student = models.Student.objects.create(student_class=class_instance, **validated_data)
         return student
+
+    def update(self, instance, validated_data):
+        student_class_data = validated_data.pop('student_class', None)
+        request_user = self.context['request'].user
+
+        if student_class_data:
+            class_instance, created = models.StudentClass.objects.get_or_create(
+                number=student_class_data['number'],
+                class_name=student_class_data['class_name'],
+                defaults={'class_owner': request_user}
+            )
+
+            if not created and class_instance.class_owner != request_user:
+                raise ValidationError("Only the class owner can update students in this class.")
+
+            instance.student_class = class_instance
+
+        instance.full_name = validated_data.get('full_name', instance.full_name)
+        instance.birthday = validated_data.get('birthday', instance.birthday)
+        instance.gender = validated_data.get('gender', instance.gender)
+        instance.save()
+
+        return instance
 
 
 class StudentResultSerializer(serializers.ModelSerializer):

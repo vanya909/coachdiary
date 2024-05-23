@@ -18,14 +18,14 @@ class StandardValueViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
-    serializer_class = serializers.StandardValueSerializer
+    serializer_class = serializers.StandardSerializer
     permission_classes = (
         permissions.IsAuthenticated,
     )
 
     def get_queryset(self):
         user = self.request.user
-        return models.StandardValue.objects.filter(student_class__class_owner=user)
+        return models.Standard.objects.filter(who_added_id=user)
 
 
 class StudentViewSet(
