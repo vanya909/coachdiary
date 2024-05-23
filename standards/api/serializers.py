@@ -12,6 +12,7 @@ class StandardSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Standard
         fields = (
+            "id",
             "name",
             "has_numeric_value",
         )
