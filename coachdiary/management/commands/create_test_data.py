@@ -3,7 +3,7 @@ import random
 import time
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from standards.models import StudentClass, Student, Standard, StandardValue, Level, StudentStandard
+from standards.models import StudentClass, Student, Standard, Level, StudentStandard
 from auth.users.models import User
 
 
@@ -17,7 +17,7 @@ class Command(BaseCommand):
         # Clear existing data to avoid constraint issues
         StudentStandard.objects.all().delete()
         Level.objects.all().delete()
-        StandardValue.objects.all().delete()
+
         Standard.objects.all().delete()
         Student.objects.all().delete()
         StudentClass.objects.all().delete()

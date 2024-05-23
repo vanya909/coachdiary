@@ -8,40 +8,6 @@ from drf_writable_nested.serializers import WritableNestedModelSerializer
 from .. import models
 
 
-class StandardSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.Standard
-        fields = (
-            "id",
-            "name",
-            "has_numeric_value",
-        )
-        read_only_fields = (
-            "name",
-        )
-
-    def update(self, instance, validated_data):
-        updated_numeric_value_field = validated_data.get("has_numeric_value")
-
-        if instance.has_numeric_value != updated_numeric_value_field:
-            raise exceptions.ValidationError(
-                "Нельзя изменять тип норматива после создания."
-            )
-
-        return super().update(instance, validated_data)
-
-
-class StudentStandardSerializer(serializers.ModelSerializer):
-    standard = StandardSerializer()
-
-    class Meta:
-        model = models.StudentStandard
-        fields = (
-            'standard',
-            'grade',
-            'value')
-
-
 class LevelSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Level
@@ -58,56 +24,56 @@ class LevelSerializer(serializers.ModelSerializer):
         )
 
 
-class StandardValueSerializer(WritableNestedModelSerializer):
-    standard = StandardSerializer()
-    student_class = get_id_serializer_for_model(models.StudentClass)
-    levels = LevelSerializer(many=True)
+# class StandardValueSerializer(WritableNestedModelSerializer):
+#     standard = StandardSerializer()
+#     student_class = get_id_serializer_for_model(models.StudentClass)
+#     levels = LevelSerializer(many=True)
+#
+#     class Meta:
+#         model = models.StandardValue
+#         fields = (
+#             "id",
+#             "standard",
+#             "levels"
+#         )
+#         read_only_fields = (
+#             "id",
+#         )
 
-    class Meta:
-        model = models.StandardValue
-        fields = (
-            "id",
-            "standard",
-            "levels"
-        )
-        read_only_fields = (
-            "id",
-        )
+# def validate(self, attrs: dict):
+#     if "standard" in attrs and "has_numeric_value" in attrs["standard"]:
+#         levels_data = attrs.get("levels", [])
+#         is_numeric_value = attrs["standard"]["has_numeric_value"]
+#
+#         if is_numeric_value:
+#             for level in levels_data:
+#                 if any([level.get('low_level_value') is not None,
+#                         level.get('middle_level_value') is not None,
+#                         level.get('high_level_value') is not None]):
+#                     raise exceptions.ValidationError(
+#                         "Для навыков не поддерживаются значения уровней. "
+#                         "Заполните только номер уровня."
+#                     )
+#         else:
+#             for level in levels_data:
+#                 if not all([level.get('low_level_value') is not None,
+#                             level.get('middle_level_value') is not None,
+#                             level.get('high_level_value') is not None]):
+#                     raise exceptions.ValidationError(
+#                         "Для нормативов необходимо задать значения уровней: "
+#                         "Минимальное, Среднее и Лучшее."
+#                     )
+#
+#     return super().validate(attrs)
 
-    def validate(self, attrs: dict):
-        if "standard" in attrs and "has_numeric_value" in attrs["standard"]:
-            levels_data = attrs.get("levels", [])
-            is_numeric_value = attrs["standard"]["has_numeric_value"]
-
-            if is_numeric_value:
-                for level in levels_data:
-                    if any([level.get('low_level_value') is not None,
-                            level.get('middle_level_value') is not None,
-                            level.get('high_level_value') is not None]):
-                        raise exceptions.ValidationError(
-                            "Для навыков не поддерживаются значения уровней. "
-                            "Заполните только номер уровня."
-                        )
-            else:
-                for level in levels_data:
-                    if not all([level.get('low_level_value') is not None,
-                                level.get('middle_level_value') is not None,
-                                level.get('high_level_value') is not None]):
-                        raise exceptions.ValidationError(
-                            "Для нормативов необходимо задать значения уровней: "
-                            "Минимальное, Среднее и Лучшее."
-                        )
-
-        return super().validate(attrs)
-
-    def create(self, validated_data: dict):
-        levels_data = validated_data.pop("levels", [])
-        standard = super().create(validated_data)
-
-        for single_level_data in levels_data:
-            standard.levels.create(**single_level_data)
-
-        return standard
+# def create(self, validated_data: dict):
+#     levels_data = validated_data.pop("levels", [])
+#     standard = super().create(validated_data)
+#
+#     for single_level_data in levels_data:
+#         standard.levels.create(**single_level_data)
+#
+#     return standard
 
 
 class StudentClassSerializer(serializers.ModelSerializer):
@@ -122,9 +88,6 @@ class StudentClassSerializer(serializers.ModelSerializer):
             class_name=validated_data['class_name'],
             defaults={'class_owner': request_user}
         )
-
-        if not created and student_class.class_owner != request_user:
-            raise ValidationError("Only the class owner can add students to this class.")
 
         return student_class
 
@@ -152,8 +115,96 @@ class FullClassNameSerializer(serializers.ModelSerializer):
         fields = ('number', 'class_name')
 
 
+class StandardSerializer(serializers.ModelSerializer):
+    levels = LevelSerializer(many=True)
+
+    class Meta:
+        model = models.Standard
+        fields = ['id', 'name', 'has_numeric_value', 'levels']
+
+    def validate(self, attrs):
+        if "has_numeric_value" in attrs:
+            levels_data = attrs.get("levels", [])
+            is_numeric_value = attrs["has_numeric_value"]
+
+            if is_numeric_value:
+                for level in levels_data:
+                    if any([
+                        level.get('low_level_value') is not None,
+                        level.get('middle_level_value') is not None,
+                        level.get('high_level_value') is not None
+                    ]):
+                        raise serializers.ValidationError(
+                            "Для навыков не поддерживаются значения уровней. "
+                            "Заполните только номер уровня."
+                        )
+            else:
+                for level in levels_data:
+                    if not all([
+                        level.get('low_level_value') is not None,
+                        level.get('middle_level_value') is not None,
+                        level.get('high_level_value') is not None
+                    ]):
+                        raise serializers.ValidationError(
+                            "Для нормативов необходимо задать значения уровней: "
+                            "Минимальное, Среднее и Лучшее."
+                        )
+
+        return super().validate(attrs)
+
+    def create(self, validated_data):
+        levels_data = validated_data.pop("levels", [])
+        request_user = self.context['request'].user
+        standard = models.Standard.objects.create(who_added=request_user, **validated_data)
+
+        for single_level_data in levels_data:
+            models.Level.objects.create(standard=standard, **single_level_data)
+
+        return standard
+
+    def update(self, instance, validated_data):
+        levels_data = validated_data.pop('levels', [])
+        instance.name = validated_data.get('name', instance.name)
+        instance.has_numeric_value = validated_data.get('has_numeric_value', instance.has_numeric_value)
+        instance.save()
+
+        existing_levels = {level.id: level for level in instance.levels.all()}
+        new_levels = []
+
+        for single_level_data in levels_data:
+            level_id = single_level_data.get('id')
+            if level_id and level_id in existing_levels:
+                level = existing_levels.pop(level_id)
+                level.level_number = single_level_data.get('level_number', level.level_number)
+                level.low_level_value = single_level_data.get('low_level_value', level.low_level_value)
+                level.middle_level_value = single_level_data.get('middle_level_value', level.middle_level_value)
+                level.high_level_value = single_level_data.get('high_level_value', level.high_level_value)
+                level.gender = single_level_data.get('gender', level.gender)
+                level.save()
+            else:
+                new_levels.append(models.Level(standard=instance, **single_level_data))
+
+        for level in existing_levels.values():
+            level.delete()
+
+        models.Level.objects.bulk_create(new_levels)
+
+        return instance
+
+
+class StudentStandardSerializer(serializers.ModelSerializer):
+    standard = StandardSerializer()
+
+    class Meta:
+        model = models.StudentStandard
+        fields = (
+            'standard',
+            'grade',
+            'value')
+
+
 class StudentSerializer(WritableNestedModelSerializer):
-    student_class = FullClassNameSerializer()
+    student_class = StudentClassSerializer()
 
     class Meta:
         model = models.Student
@@ -163,14 +214,7 @@ class StudentSerializer(WritableNestedModelSerializer):
         student_class_data = validated_data.pop('student_class')
         request_user = self.context['request'].user
 
-        class_instance, created = models.StudentClass.objects.get_or_create(
-            number=student_class_data['number'],
-            class_name=student_class_data['class_name'],
-            defaults={'class_owner': request_user}
-        )
-
-        if not created and class_instance.class_owner != request_user:
-            raise ValidationError("Only the class owner can add students to this class.")
+        class_instance = self.get_or_create_class(student_class_data, request_user)
 
         student = models.Student.objects.create(student_class=class_instance, **validated_data)
         return student
@@ -180,15 +224,7 @@ class StudentSerializer(WritableNestedModelSerializer):
         request_user = self.context['request'].user
 
         if student_class_data:
-            class_instance, created = models.StudentClass.objects.get_or_create(
-                number=student_class_data['number'],
-                class_name=student_class_data['class_name'],
-                defaults={'class_owner': request_user}
-            )
-
-            if not created and class_instance.class_owner != request_user:
-                raise ValidationError("Only the class owner can update students in this class.")
-
+            class_instance = self.get_or_create_class(student_class_data, request_user)
             instance.student_class = class_instance
 
         instance.full_name = validated_data.get('full_name', instance.full_name)
@@ -197,6 +233,27 @@ class StudentSerializer(WritableNestedModelSerializer):
         instance.save()
 
         return instance
+
+    def get_or_create_class(self, student_class_data, request_user):
+        class_instance = models.StudentClass.objects.filter(
+            number=student_class_data['number'],
+            class_name=student_class_data['class_name'],
+        ).first()
+
+        if class_instance and class_instance.class_owner != request_user:
+            class_instance = models.StudentClass.objects.create(
+                number=student_class_data['number'],
+                class_name=student_class_data['class_name'],
+                class_owner=request_user
+            )
+        elif not class_instance:
+            class_instance = models.StudentClass.objects.create(
+                number=student_class_data['number'],
+                class_name=student_class_data['class_name'],
+                class_owner=request_user
+            )
+
+        return class_instance
 
 
 class StudentResultSerializer(serializers.ModelSerializer):

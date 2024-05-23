@@ -25,7 +25,10 @@ class StandardValueViewSet(
 
     def get_queryset(self):
         user = self.request.user
-        return models.Standard.objects.filter(who_added_id=user)
+        return models.Standard.objects.filter(who_added_id=user.id)
+
+    def perform_create(self, serializer):
+        serializer.save(who_added_id=self.request.user.id)
 
 
 class StudentViewSet(

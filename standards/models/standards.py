@@ -77,7 +77,26 @@ class Student(BaseModel):
         )
 
 
-class Standard(BaseModel):
+# class StandardValue(BaseModel):
+#     standard = models.ForeignKey(
+#         to=Standard,
+#         on_delete=models.CASCADE,
+#         verbose_name="Норматив",
+#     )
+#     student_class = models.ForeignKey(
+#         StudentClass,
+#         on_delete=models.CASCADE,
+#         verbose_name="Класс",
+#     )
+#
+#     def __str__(self) -> str:
+#         return (
+#             f"Норматив: {self.standard}, "
+#             f"Класс: {self.student_class}, "
+#         )
+
+
+class Standard(models.Model):
     name = models.CharField(
         max_length=255,
         verbose_name="Название норматива",
@@ -95,27 +114,11 @@ class Standard(BaseModel):
     def __str__(self) -> str:
         return self.name
 
-
-class StandardValue(BaseModel):
-    standard = models.ForeignKey(
-        to=Standard,
-        on_delete=models.CASCADE,
-        verbose_name="Норматив",
-    )
-    student_class = models.ForeignKey(
-        StudentClass,
-        on_delete=models.CASCADE,
-        verbose_name="Класс",
-    )
-
-    def __str__(self) -> str:
-        return (
-            f"Норматив: {self.standard}, "
-            f"Класс: {self.student_class}, "
-        )
+    def get_levels(self):
+        return self.levels.all()
 
 
-class Level(BaseModel):
+class Level(models.Model):
     level_number = models.IntegerField(
         validators=(
             MinValueValidator(1),
@@ -217,7 +220,7 @@ class StudentStandard(BaseModel):
                 standard=standard_value,
                 level_number=student_class_number
             )
-        except (StandardValue.DoesNotExist, Level.DoesNotExist):
+        except (Standard.DoesNotExist, Level.DoesNotExist):
             self.level = None
 
         super().save(*args, **kwargs)
