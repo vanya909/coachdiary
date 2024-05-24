@@ -1,6 +1,7 @@
 import datetime
 import random
 import time
+import logging
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from standards.models import StudentClass, Student, Standard, Level, StudentStandard
@@ -17,7 +18,6 @@ class Command(BaseCommand):
         # Clear existing data to avoid constraint issues
         StudentStandard.objects.all().delete()
         Level.objects.all().delete()
-
         Standard.objects.all().delete()
         Student.objects.all().delete()
         StudentClass.objects.all().delete()
@@ -69,53 +69,52 @@ class Command(BaseCommand):
             )
             standards.append(standard)
 
-        # # Create standard values
-        # standard_values = []
-        # for standard in standards:
-        #     for student_class in student_classes:
-        #         standard_value = StandardValue.objects.create(
-        #             standard=standard,
-        #             student_class=student_class,
-        #         )
-        #         standard_values.append(standard_value)
-
         # Create levels
-        for standard_value in standards:
-            has_numeric_value = standard_value.has_numeric_value
-            created_levels_count = 0  # Track the number of levels created for this standard
+        for standard in standards:
+            has_numeric_value = standard.has_numeric_value
 
-            for i in range(1, 6):
-                if created_levels_count >= 2:
-                    break  # Maximum 2 levels created, so exit loop
-
+            for i in range(1, 12):
                 if has_numeric_value:
-                    # Create Level without low, middle, and high level values
-                    Level.objects.create(
-                        level_number=i,
-                        standard=standard_value,
-                        gender=random.choice([Level.Gender.male, Level.Gender.female]),
-                    )
-                    created_levels_count += 1  # Increment count for each level created
-                else:
                     # Create Level with low, middle, and high level values
                     Level.objects.create(
                         level_number=i,
                         low_level_value=random.uniform(0, 10),
                         middle_level_value=random.uniform(10, 20),
                         high_level_value=random.uniform(20, 30),
-                        standard=standard_value,
+                        standard=standard,
                         gender=random.choice([Level.Gender.male, Level.Gender.female]),
                     )
-                    created_levels_count += 1  # Increment count for each level created
+                else:
+                    # Create Level without low, middle, and high level values
+                    Level.objects.create(
+                        level_number=i,
+                        standard=standard,
+                        gender=random.choice([Level.Gender.male, Level.Gender.female]),
+                    )
+
+        self.stdout.write(f'Created all levels, starting creating StudentStandard')
 
         # Create student standards
         for student in students:
             for standard in standards:
+                # Determine the level based on the standard and student's class number
+                student_class_number = student.student_class.number
+                try:
+                    level = Level.objects.get(
+                        standard=standard,
+                        level_number=student_class_number
+                    )
+                except Level.DoesNotExist:
+                    level = None
+                    logging.error(
+                        f"Level for standard '{standard.name}' and class number '{student_class_number}' does not exist.")
+
                 StudentStandard.objects.create(
                     student=student,
                     standard=standard,
                     grade=round(random.uniform(2, 5)),  # Ensure grade is rounded to nearest integer
                     value=random.uniform(0, 100),
+                    level=level
                 )
 
         # Calculate elapsed time

@@ -200,7 +200,8 @@ class StudentStandardSerializer(serializers.ModelSerializer):
         fields = (
             'standard',
             'grade',
-            'value')
+            'value',
+            'level')
 
 
 class StudentSerializer(WritableNestedModelSerializer):
@@ -259,33 +260,43 @@ class StudentSerializer(WritableNestedModelSerializer):
 class StudentResultSerializer(serializers.ModelSerializer):
     student_class = FullClassNameSerializer()
     student_standards = StudentStandardSerializer(source='studentstandard_set', many=True)
+    levels = LevelSerializer(source='level_set', many=True)
 
     class Meta:
         model = models.Student
-        fields = ['id', 'full_name', 'student_class', 'birthday', 'gender', 'student_standards']
+        fields = ['id', 'full_name', 'student_class', 'birthday', 'gender', 'student_standards', 'levels']
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
+
+        # Include levels for each student standard
         if representation.get('student_standards'):
+            levels = []
             for standard in representation['student_standards']:
+                if 'level' in standard and standard['level']:
+                    levels.append(standard['level'])
                 representation.update(standard)
+            representation['levels'] = levels
             representation.pop('student_standards')
+
         return representation
 
 
 class StudentStandardCreateSerializer(serializers.ModelSerializer):
     student_id = serializers.IntegerField(write_only=True)
     standard_id = serializers.IntegerField(write_only=True)
+    level_number = serializers.IntegerField(write_only=True, required=False)
 
     class Meta:
         model = models.StudentStandard
-        fields = ['student_id', 'standard_id', 'value', 'grade']
+        fields = ['student_id', 'standard_id', 'value', 'grade', 'level_number']
         read_only_fields = ['grade']
 
     def validate(self, data):
         student_id = data.get('student_id')
         standard_id = data.get('standard_id')
         value = data.get('value')
+        level_number = data.get('level_number')
 
         try:
             student = models.Student.objects.get(id=student_id)
@@ -297,31 +308,46 @@ class StudentStandardCreateSerializer(serializers.ModelSerializer):
         except models.Standard.DoesNotExist:
             raise serializers.ValidationError("Standard does not exist")
 
+        # Check if the standard has a numeric value
         if not standard.has_numeric_value:
+            # If the standard does not have a numeric value, store the value directly in grade
             data['grade'] = value
         else:
+            # Fetch levels for the standard and student's gender
             levels = models.Level.objects.filter(
-                standard__standard=standard, gender=student.gender
+                standard=standard, gender=student.gender
             ).order_by('level_number')
 
             if not levels.exists():
                 raise serializers.ValidationError("No levels found for this standard and gender")
 
-            grade = None
-            for level in levels:
+            # If level_number is specified, validate it and calculate grade accordingly
+            if level_number is not None:
+                try:
+                    level = levels.get(level_number=level_number)
+                except models.Level.DoesNotExist:
+                    raise serializers.ValidationError("Invalid level_number")
+
                 if value >= level.low_level_value:
                     if value >= level.high_level_value:
-                        grade = '5'
+                        data['grade'] = '5'
                     elif value >= level.middle_level_value:
-                        grade = '4'
+                        data['grade'] = '4'
                     else:
-                        grade = '3'
-                    break
+                        data['grade'] = '3'
+                else:
+                    data['grade'] = '2'  # Default to the lowest grade if value is below low_level_value
+            else:
+                # If level_number is not specified, default to the lowest level
+                data['grade'] = '2'
 
-            if grade is None:
-                grade = '2'  # Default to the lowest grade if no level matches
+        # Check if the student has already passed this standard for the specified level
+        existing_result = models.StudentStandard.objects.filter(
+            student=student, standard=standard, level_number=level_number
+        ).exists()
 
-            data['grade'] = grade
+        if existing_result:
+            raise serializers.ValidationError("Result for this standard and level already exists")
 
         data['student'] = student
         data['standard'] = standard

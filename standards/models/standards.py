@@ -165,12 +165,12 @@ class Level(models.Model):
 
     def clean(self):
         if self.standard.has_numeric_value:
-            if any([self.low_level_value, self.middle_level_value, self.high_level_value]):
+            if not all([self.low_level_value, self.middle_level_value, self.high_level_value]):
                 raise ValidationError(
-                    "Для нормативов с числовым значением не следует указывать уровневые значения."
+                    "Для нормативов с числовым значением необходимо указывать уровневые значения."
                 )
         else:
-            if not all([self.low_level_value, self.middle_level_value, self.high_level_value]):
+            if any([self.low_level_value, self.middle_level_value, self.high_level_value]):
                 raise ValidationError(
                     "Для нормативов без числового значения необходимо указать все уровневые значения."
                 )
@@ -178,6 +178,60 @@ class Level(models.Model):
     def save(self, *args, **kwargs):
         self.clean()  # Ensure the clean method is called
         super().save(*args, **kwargs)
+
+
+# class StudentStandard(BaseModel):
+#     student = models.ForeignKey(
+#         Student,
+#         on_delete=models.CASCADE,
+#         verbose_name="Ученик",
+#     )
+#     standard = models.ForeignKey(
+#         Standard,
+#         on_delete=models.CASCADE,
+#         verbose_name="Норматив",
+#     )
+#     grade = models.IntegerField(
+#         verbose_name="Оценка",
+#         validators=[MinValueValidator(0)],
+#     )
+#     value = models.FloatField(
+#         verbose_name="Значение",
+#     )
+#     level = models.ForeignKey(
+#         Level,
+#         on_delete=models.CASCADE,
+#         verbose_name="Уровень",
+#         null=True,
+#         blank=True
+#     )
+#
+#     def save(self, *args, **kwargs):
+#         if isinstance(self.grade, float):
+#             self.grade = round(self.grade)
+#
+#         student_class_number = self.student.student_class.number
+#
+#         try:
+#             standard_value = Standard.objects.get(
+#                 name=self.standard
+#             )
+#             self.level = Level.objects.get(
+#                 standard=standard_value,
+#                 level_number=student_class_number
+#             )
+#         except (Standard.DoesNotExist, Level.DoesNotExist):
+#             self.level = None
+#
+#         super().save(*args, **kwargs)
+#
+#     def __str__(self) -> str:
+#         return (
+#             f"{self.student} - {self.standard} "
+#             f"({self.value}, Оценка: {self.grade}, Уровень: {self.level})"
+#         )
+
+import logging
 
 
 class StudentStandard(BaseModel):
@@ -202,27 +256,38 @@ class StudentStandard(BaseModel):
         Level,
         on_delete=models.CASCADE,
         verbose_name="Уровень",
-        null=True,
-        blank=True
+        null=True
     )
 
     def save(self, *args, **kwargs):
+        # Ensure grade is an integer
         if isinstance(self.grade, float):
             self.grade = round(self.grade)
 
+        # Get the student's class number
         student_class_number = self.student.student_class.number
 
+        # Initialize level to None
+        self.level = None
+
         try:
-            standard_value = Standard.objects.get(
-                name=self.standard
-            )
+            # Fetch the standard value by name
+            standard_value = Standard.objects.get(name=self.standard.name)
+
+            # Try to fetch the level corresponding to the standard and class number
             self.level = Level.objects.get(
                 standard=standard_value,
                 level_number=student_class_number
             )
-        except (Standard.DoesNotExist, Level.DoesNotExist):
-            self.level = None
+        except Standard.DoesNotExist:
+            logging.error(f"Standard '{self.standard.name}' does not exist.")
+        except Level.DoesNotExist:
+            logging.error(
+                f"Level for standard '{self.standard.name}' and class number '{student_class_number}' does not exist.")
+        except Exception as e:
+            logging.error(f"An unexpected error occurred: {e}")
 
+        # Proceed with saving the instance
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:

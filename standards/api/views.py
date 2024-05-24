@@ -6,7 +6,7 @@ from rest_framework.response import Response
 
 from . import serializers
 from . import filters as custom_filters
-from .serializers import StudentStandardSerializer, StudentSerializer
+from .serializers import StudentStandardSerializer, StudentSerializer, StudentResultSerializer
 from .. import models
 
 
@@ -110,27 +110,45 @@ class StudentStandardsViewSet(viewsets.ViewSet):
             raise PermissionDenied("You do not have permission to access this student's standards.")
 
         student_standards = models.StudentStandard.objects.filter(student=student)
-        serializer = StudentStandardSerializer(student_standards, many=True)
-        return Response(serializer.data)
+
+        # Construct the desired output format
+        response_data = []
+        for student_standard in student_standards:
+            standard_data = {
+                'Standard': {
+                    'Id': student_standard.standard.id,
+                    'Name': student_standard.standard.name
+                },
+                'Level_number': student_standard.level.level_number if student_standard.level else None,
+                'Value': student_standard.value,
+                'Grade': student_standard.grade
+            }
+            response_data.append(standard_data)
+
+        return Response(response_data)
 
 
 class StudentsResultsViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin):
     permission_classes = (permissions.IsAuthenticated,)
-    serializer_class = serializers.StudentResultSerializer
+    serializer_class = StudentResultSerializer
 
     def list(self, request):
         class_ids = request.query_params.getlist('class_id[]')
         standard_id = request.query_params.get('standard_id')
 
         if not class_ids or not standard_id:
-            return Response({"detail": "class_id and standard_id are required."}, status=400)
+            return Response({"detail": "class_id and standard_id are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        students_results = models.StudentStandard.objects.filter(
-            student__student_class__id__in=class_ids,
-            standard_id=standard_id
-        ).select_related('student', 'standard')
+        # Get students within the specified classes
+        students = models.Student.objects.filter(
+            student_class__id__in=class_ids
+        ).prefetch_related(
+            'studentstandard_set__standard',
+            'studentstandard_set__level_id'
+        )
 
-        serializer = StudentStandardSerializer(students_results, many=True)
+        # Serialize the results
+        serializer = StudentResultSerializer
         return Response(serializer.data)
 
 
