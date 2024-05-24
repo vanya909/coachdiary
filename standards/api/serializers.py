@@ -79,7 +79,7 @@ class LevelSerializer(serializers.ModelSerializer):
 class StudentClassSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.StudentClass
-        fields = ("class_name", "number", "recruitment_year")
+        fields = ("id", "class_name", "number", "recruitment_year")
 
     def create(self, validated_data):
         request_user = self.context['request'].user
@@ -112,7 +112,7 @@ class StudentClassSerializer(serializers.ModelSerializer):
 class FullClassNameSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.StudentClass
-        fields = ('number', 'class_name')
+        fields = ('id', 'number', 'class_name')
 
 
 class StandardSerializer(serializers.ModelSerializer):
