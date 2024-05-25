@@ -117,7 +117,8 @@ class StudentStandardsViewSet(viewsets.ViewSet):
             standard_data = {
                 'Standard': {
                     'Id': student_standard.standard.id,
-                    'Name': student_standard.standard.name
+                    'Name': student_standard.standard.name,
+                    'Has_numeric_value': student_standard.standard.has_numeric_value
                 },
                 'Level_number': student_standard.level.level_number if student_standard.level else None,
                 'Value': student_standard.value,
