@@ -308,12 +308,9 @@ class StudentStandardCreateSerializer(serializers.ModelSerializer):
         except models.Standard.DoesNotExist:
             raise serializers.ValidationError("Standard does not exist")
 
-        # Check if the standard has a numeric value
         if not standard.has_numeric_value:
-            # If the standard does not have a numeric value, store the value directly in grade
             data['grade'] = value
         else:
-            # Fetch levels for the standard and student's gender
             levels = models.Level.objects.filter(
                 standard=standard, gender=student.gender
             ).order_by('level_number')
@@ -321,7 +318,6 @@ class StudentStandardCreateSerializer(serializers.ModelSerializer):
             if not levels.exists():
                 raise serializers.ValidationError("No levels found for this standard and gender")
 
-            # If level_number is specified, validate it and calculate grade accordingly
             if level_number is not None:
                 try:
                     level = levels.get(level_number=level_number)
@@ -336,18 +332,9 @@ class StudentStandardCreateSerializer(serializers.ModelSerializer):
                     else:
                         data['grade'] = '3'
                 else:
-                    data['grade'] = '2'  # Default to the lowest grade if value is below low_level_value
+                    data['grade'] = '2'
             else:
-                # If level_number is not specified, default to the lowest level
                 data['grade'] = '2'
-
-        # Check if the student has already passed this standard for the specified level
-        existing_result = models.StudentStandard.objects.filter(
-            student=student, standard=standard, level_number=level_number
-        ).exists()
-
-        if existing_result:
-            raise serializers.ValidationError("Result for this standard and level already exists")
 
         data['student'] = student
         data['standard'] = standard
@@ -355,10 +342,12 @@ class StudentStandardCreateSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        student_standard = models.StudentStandard.objects.create(
+        student_standard, created = models.StudentStandard.objects.update_or_create(
             student=validated_data['student'],
             standard=validated_data['standard'],
-            value=validated_data['value'],
-            grade=validated_data['grade']
+            defaults={
+                'value': validated_data['value'],
+                'grade': validated_data['grade']
+            }
         )
         return student_standard

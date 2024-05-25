@@ -128,7 +128,7 @@ class StudentStandardsViewSet(viewsets.ViewSet):
         return Response(response_data)
 
 
-class StudentsResultsViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin):
+class StudentsResultsViewSet(viewsets.GenericViewSet):
     permission_classes = (permissions.IsAuthenticated,)
     serializer_class = StudentResultSerializer
 
@@ -152,36 +152,37 @@ class StudentsResultsViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin):
         return Response(serializer.data)
 
 
-class StudentResultsCreateViewSet(viewsets.ViewSet):
+class StudentResultsCreateOrUpdateViewSet(viewsets.ViewSet):
     permission_classes = (permissions.IsAuthenticated,)
 
-    def create(self, request, *args, **kwargs):
+    @action(detail=False, methods=['post'])
+    def create_or_update(self, request, *args, **kwargs):
         serializer = serializers.StudentStandardCreateSerializer(data=request.data)
         if serializer.is_valid():
-            student_result = serializer.save()
-            return Response(
-                {"detail": "Student result record created successfully.",
-                 "data": serializers.StudentStandardCreateSerializer(student_result).data},
-                status=status.HTTP_201_CREATED
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            student_id = serializer.validated_data['student_id']
+            standard_id = serializer.validated_data['standard_id']
 
-
-class StudentResultsUpdateViewSet(viewsets.ViewSet):
-    permission_classes = (permissions.IsAuthenticated,)
-
-    def update(self, request, pk=None):
-        try:
-            student_result = models.StudentStandard.objects.get(pk=pk)
-        except models.StudentStandard.DoesNotExist:
-            return Response({"detail": "Student result record does not exist."}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = serializers.StudentStandardCreateSerializer(student_result, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {"detail": "Student result record updated successfully.",
-                 "data": serializer.data},
-                status=status.HTTP_200_OK
-            )
+            try:
+                student_result = models.StudentStandard.objects.get(
+                    student_id=student_id, standard_id=standard_id,
+                )
+                # If it exists, update it
+                serializer = serializers.StudentStandardCreateSerializer(
+                    student_result, data=request.data, partial=True
+                )
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(
+                        {"detail": "Student result record updated successfully.",
+                         "data": serializer.data},
+                        status=status.HTTP_200_OK
+                    )
+            except models.StudentStandard.DoesNotExist:
+                # If it doesn't exist, create a new one
+                student_result = serializer.save()
+                return Response(
+                    {"detail": "Student result record created successfully.",
+                     "data": serializers.StudentStandardCreateSerializer(student_result).data},
+                    status=status.HTTP_201_CREATED
+                )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
