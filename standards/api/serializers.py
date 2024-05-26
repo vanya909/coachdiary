@@ -309,36 +309,44 @@ class StudentStandardCreateSerializer(serializers.ModelSerializer):
         except models.Standard.DoesNotExist:
             raise serializers.ValidationError("Standard does not exist")
 
+        # Automatically set the level_number if not provided
+        if level_number is None:
+            try:
+                level_number = student.student_class.number
+                print(level_number)
+            except (ValueError, IndexError):
+                raise serializers.ValidationError("Unable to determine the level_number from the student's class.")
+
+        # Ensure level_number is valid
+        levels = models.Level.objects.filter(
+            standard=standard, gender=student.gender
+        ).order_by('level_number')
+
+        if not levels.exists():
+            raise serializers.ValidationError("No levels found for this standard and gender")
+
+        try:
+            level = levels.get(level_number=level_number)
+        except models.Level.DoesNotExist:
+            raise serializers.ValidationError("Invalid level_number")
+
+        # Determine the grade based on the value
         if not standard.has_numeric_value:
             data['grade'] = value
         else:
-            levels = models.Level.objects.filter(
-                standard=standard, gender=student.gender
-            ).order_by('level_number')
-
-            if not levels.exists():
-                raise serializers.ValidationError("No levels found for this standard and gender")
-
-            if level_number is not None:
-                try:
-                    level = levels.get(level_number=level_number)
-                except models.Level.DoesNotExist:
-                    raise serializers.ValidationError("Invalid level_number")
-
-                if value >= level.low_level_value:
-                    if value >= level.high_level_value:
-                        data['grade'] = '5'
-                    elif value >= level.middle_level_value:
-                        data['grade'] = '4'
-                    else:
-                        data['grade'] = '3'
+            if value >= level.low_level_value:
+                if value >= level.high_level_value:
+                    data['grade'] = '5'
+                elif value >= level.middle_level_value:
+                    data['grade'] = '4'
                 else:
-                    data['grade'] = '2'
+                    data['grade'] = '3'
             else:
-                data['grade'] = '2'
+                data['grade'] = '2'  # Default to the lowest grade if value is below low_level_value
 
         data['student'] = student
         data['standard'] = standard
+        data['level_number'] = level_number
 
         return data
 
@@ -348,7 +356,8 @@ class StudentStandardCreateSerializer(serializers.ModelSerializer):
             standard=validated_data['standard'],
             defaults={
                 'value': validated_data['value'],
-                'grade': validated_data['grade']
+                'grade': validated_data['grade'],
+                'level_number': validated_data['level_number']
             }
         )
         return student_standard

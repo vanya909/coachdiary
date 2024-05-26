@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import mixins, viewsets, permissions, status
 from django_filters import rest_framework as filters
 from rest_framework.decorators import action
@@ -157,33 +158,50 @@ class StudentResultsCreateOrUpdateViewSet(viewsets.ViewSet):
     permission_classes = (permissions.IsAuthenticated,)
 
     @action(detail=False, methods=['post'])
+    @transaction.atomic
     def create_or_update(self, request, *args, **kwargs):
-        serializer = serializers.StudentStandardCreateSerializer(data=request.data)
-        if serializer.is_valid():
-            student_id = serializer.validated_data['student_id']
-            standard_id = serializer.validated_data['standard_id']
+        data = request.data
 
-            try:
-                student_result = models.StudentStandard.objects.get(
-                    student_id=student_id, standard_id=standard_id,
-                )
-                # If it exists, update it
-                serializer = serializers.StudentStandardCreateSerializer(
-                    student_result, data=request.data, partial=True
-                )
-                if serializer.is_valid():
-                    serializer.save()
-                    return Response(
-                        {"detail": "Student result record updated successfully.",
-                         "data": serializer.data},
-                        status=status.HTTP_200_OK
+        if not isinstance(data, list):
+            return Response({"error": "Expected a list of objects."}, status=status.HTTP_400_BAD_REQUEST)
+
+        response_data = []
+        errors = []
+
+        for entry in data:
+            serializer = serializers.StudentStandardCreateSerializer(data=entry)
+            if serializer.is_valid():
+                validated_data = serializer.validated_data
+                student_id = validated_data['student_id']
+                standard_id = validated_data['standard_id']
+
+                try:
+                    student_result = models.StudentStandard.objects.get(
+                        student_id=student_id, standard_id=standard_id,
                     )
-            except models.StudentStandard.DoesNotExist:
-                # If it doesn't exist, create a new one
-                student_result = serializer.save()
-                return Response(
-                    {"detail": "Student result record created successfully.",
-                     "data": serializers.StudentStandardCreateSerializer(student_result).data},
-                    status=status.HTTP_201_CREATED
-                )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                    # If it exists, update it
+                    update_serializer = serializers.StudentStandardCreateSerializer(
+                        student_result, data=entry, partial=True
+                    )
+                    if update_serializer.is_valid():
+                        update_serializer.save()
+                        response_data.append({
+                            "detail": "Student result record updated successfully.",
+                            "data": update_serializer.data
+                        })
+                    else:
+                        errors.append(update_serializer.errors)
+                except models.StudentStandard.DoesNotExist:
+                    # If it doesn't exist, create a new one
+                    student_result = serializer.save()
+                    response_data.append({
+                        "detail": "Student result record created successfully.",
+                        "data": serializers.StudentStandardCreateSerializer(student_result).data
+                    })
+            else:
+                errors.append(serializer.errors)
+
+        if errors:
+            return Response({"errors": errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(response_data, status=status.HTTP_200_OK)
