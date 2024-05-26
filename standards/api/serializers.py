@@ -129,17 +129,6 @@ class StandardSerializer(serializers.ModelSerializer):
 
             if is_numeric_value:
                 for level in levels_data:
-                    if any([
-                        level.get('low_level_value') is not None,
-                        level.get('middle_level_value') is not None,
-                        level.get('high_level_value') is not None
-                    ]):
-                        raise serializers.ValidationError(
-                            "Для навыков не поддерживаются значения уровней. "
-                            "Заполните только номер уровня."
-                        )
-            else:
-                for level in levels_data:
                     if not all([
                         level.get('low_level_value') is not None,
                         level.get('middle_level_value') is not None,
@@ -148,6 +137,18 @@ class StandardSerializer(serializers.ModelSerializer):
                         raise serializers.ValidationError(
                             "Для нормативов необходимо задать значения уровней: "
                             "Минимальное, Среднее и Лучшее."
+
+                        )
+            else:
+                for level in levels_data:
+                    if any([
+                        level.get('low_level_value') is not None,
+                        level.get('middle_level_value') is not None,
+                        level.get('high_level_value') is not None
+                    ]):
+                        raise serializers.ValidationError(
+                            "Для навыков не поддерживаются значения уровней. "
+                            "Заполните только номер уровня."
                         )
 
         return super().validate(attrs)
