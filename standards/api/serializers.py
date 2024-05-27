@@ -282,10 +282,11 @@ class StudentStandardCreateSerializer(serializers.ModelSerializer):
     student_id = serializers.IntegerField(write_only=True)
     standard_id = serializers.IntegerField(write_only=True)
     level_id = serializers.IntegerField(write_only=True, required=False)
+    level_number = serializers.IntegerField(write_only=True, required=False)
 
     class Meta:
         model = models.StudentStandard
-        fields = ['student_id', 'standard_id', 'value', 'grade', 'level_id']
+        fields = ['student_id', 'standard_id', 'value', 'grade', 'level_id', 'level_number']
         read_only_fields = ['grade']
 
     def validate(self, data):
@@ -293,6 +294,7 @@ class StudentStandardCreateSerializer(serializers.ModelSerializer):
         standard_id = data.get('standard_id')
         value = data.get('value')
         level_id = data.get('level_id')
+        level_number = data.get('level_number')
 
         try:
             student = models.Student.objects.get(id=student_id)
@@ -306,15 +308,28 @@ class StudentStandardCreateSerializer(serializers.ModelSerializer):
 
         # Automatically set the level_id if not provided
         if level_id is None:
-            try:
-                level = models.Level.objects.get(
-                    level_number=student.student_class.number,
-                    standard=standard,
-                    gender=student.gender
-                )
-                level_id = level.id
-            except models.Level.DoesNotExist:
-                raise serializers.ValidationError("Invalid level for the student's class")
+            if level_number is not None:
+                try:
+                    level = models.Level.objects.get(
+                        level_number=level_number,
+                        standard=standard,
+                        gender=student.gender
+                    )
+                    level_id = level.id
+                except models.Level.DoesNotExist:
+                    raise serializers.ValidationError(
+                        "Invalid level for the provided level number and student's gender")
+            else:
+                try:
+                    level = models.Level.objects.get(
+                        level_number=student.student_class.number,
+                        standard=standard,
+                        gender=student.gender
+                    )
+                    level_id = level.id
+                    print(level.level_number)
+                except models.Level.DoesNotExist:
+                    raise serializers.ValidationError("Invalid level for the student's class")
 
         # Ensure level_id is valid
         try:
