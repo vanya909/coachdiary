@@ -326,7 +326,8 @@ class StudentStandardCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("No levels found for this standard and gender")
 
         try:
-            level = levels.get(level_number=level_number)
+            level = models.Level.objects.get(level_number=student.student_class.number,
+                                             standard=standard)
         except models.Level.DoesNotExist:
             raise serializers.ValidationError("Invalid level_number")
 
