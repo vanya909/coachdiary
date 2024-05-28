@@ -1,6 +1,7 @@
 import datetime
 import random
 import time
+import logging
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from standards.models import StudentClass, Student, Standard, Level, StudentStandard
@@ -69,68 +70,56 @@ class Command(BaseCommand):
             standards.append(standard)
 
         # Create levels
-        levels = []
         for standard in standards:
             has_numeric_value = standard.has_numeric_value
 
             for i in range(1, 12):
                 if has_numeric_value:
-                    # Create Level with low, middle, and high level values for male and female
-                    for gender in [Level.Gender.male, Level.Gender.female]:
-                        level = Level.objects.create(
-                            level_number=i,
-                            low_level_value=random.randint(1, 10),
-                            middle_level_value=random.randint(10, 20),
-                            high_level_value=random.randint(20, 30),
-                            standard=standard,
-                            gender=gender,
-                        )
-                        levels.append(level)
+                    # Create Level with low, middle, and high level values
+                    Level.objects.create(
+                        level_number=i,
+                        low_level_value=random.uniform(0, 10),
+                        middle_level_value=random.uniform(10, 20),
+                        high_level_value=random.uniform(20, 30),
+                        standard=standard,
+                        gender=random.choice([Level.Gender.male, Level.Gender.female]),
+                    )
                 else:
-                    # Create Level without low, middle, and high level values for male and female
-                    for gender in [Level.Gender.male, Level.Gender.female]:
-                        level = Level.objects.create(
-                            level_number=i,
-                            standard=standard,
-                            gender=gender,
-                        )
-                        levels.append(level)
+                    # Create Level without low, middle, and high level values
+                    Level.objects.create(
+                        level_number=i,
+                        standard=standard,
+                        gender=random.choice([Level.Gender.male, Level.Gender.female]),
+                    )
 
-        self.stdout.write('Created all levels, starting creating StudentStandard')
+        self.stdout.write(f'Created all levels, starting creating StudentStandard')
 
         # Create student standards
         for student in students:
             for standard in standards:
-                # Determine the level based on the standard and student's class number and gender
+                # Determine the level based on the standard and student's class number
                 student_class_number = student.student_class.number
                 try:
                     level = Level.objects.get(
                         standard=standard,
-                        level_number=student_class_number,
-                        gender=student.gender
+                        level_number=student_class_number
                     )
                 except Level.DoesNotExist:
                     level = None
-
-                except Level.MultipleObjectsReturned:
-                    level = Level.objects.filter(
-                        standard=standard,
-                        level_number=student_class_number,
-                        gender=student.gender
-                    )
+                    logging.error(
+                        f"Level for standard '{standard.name}' and class number '{student_class_number}' does not exist.")
 
                 StudentStandard.objects.create(
                     student=student,
                     standard=standard,
-                    grade=random.randint(2, 5),
-                    value=random.randint(1, 100),
+                    grade=round(random.uniform(2, 5)),  # Ensure grade is rounded to nearest integer
+                    value=random.uniform(0, 100),
                     level=level
                 )
 
+        # Calculate elapsed time
         end_time = time.time()
         elapsed_time = end_time - start_time
 
         self.stdout.write(self.style.SUCCESS(f'Test data created successfully in {elapsed_time:.2f} seconds.'))
 
-# To run this script, save it as a management command in your Django app (e.g., `your_app/management/commands/create_test_data_old.py`),
-# and then run it with the command: `python manage.py create_test_data`.

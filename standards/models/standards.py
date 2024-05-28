@@ -277,7 +277,8 @@ class StudentStandard(BaseModel):
             # Try to fetch the level corresponding to the standard and class number
             self.level = Level.objects.get(
                 standard=standard_value,
-                level_number=student_class_number
+                level_number=student_class_number,
+                gender=self.student.gender,
             )
         except Standard.DoesNotExist:
             logging.error(f"Standard '{self.standard.name}' does not exist.")
