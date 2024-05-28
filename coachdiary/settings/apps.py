@@ -17,6 +17,7 @@ EXTERNAL_APPS = [
 LOCAL_APPS = [
     "auth.users",
     "standards",
+    "coachdiary"
 ]
 
 INSTALLED_APPS = [
