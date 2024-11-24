@@ -1,7 +1,10 @@
 import json
 
 from django.contrib.auth import authenticate, login, logout
+from django.http import JsonResponse
 from django.middleware.csrf import get_token
+import requests
+from auth.users.api.utils import generate_pkce
 from drf_spectacular.utils import extend_schema
 from rest_framework import response, status, views, viewsets, mixins, permissions
 from rest_framework.exceptions import ValidationError
@@ -121,3 +124,81 @@ class UserLogoutView(views.APIView):
             },
             status=status.HTTP_200_OK
         )
+    
+def get_pkce_params(request):
+    if request.method == "GET":
+        pkce_params = generate_pkce()
+        return JsonResponse(pkce_params)
+    return JsonResponse({"error": "Invalid request method"}, status=400)
+
+
+VK_OAUTH_URL = "https://id.vk.com/oauth2/auth"
+VK_USER_INFO_URL = "https://id.vk.com/oauth2/user_info"
+CLIENT_ID = "52749809"
+
+
+def vk_auth(request):
+    if request.method == "POST":
+        data = request.json()
+        code = data.get("code")
+        device_id = data.get("device_id")
+        code_verifier = data.get("code_verifier")
+
+        if not code or not device_id or not code_verifier:
+            return JsonResponse({"success": False, "error": "Missing required parameters"})
+
+        token_response = requests.post(VK_OAUTH_URL, data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "code_verifier": code_verifier,
+            "device_id": device_id,
+        })
+        token_data = token_response.json()
+
+        if "access_token" not in token_data:
+            return JsonResponse({"success": False, "error": "Token exchange failed", "details": token_data})
+
+        access_token = token_data["access_token"]
+
+        user_info_response = requests.post(VK_USER_INFO_URL, data={
+            "client_id": CLIENT_ID,
+            "access_token": access_token,
+        })
+
+        if user_info_response.status_code != 200:
+            return JsonResponse({"success": False, "error": "Failed to fetch user info"})
+
+        user_info = user_info_response.json().get("user")
+        if not user_info:
+            return JsonResponse({"success": False, "error": "Invalid user info response"})
+
+        email = user_info.get("email")
+        first_name = user_info.get("first_name", "")
+        last_name = user_info.get("last_name", "")
+        name = f"{first_name} {last_name}".strip()
+
+        if not email:
+            return JsonResponse({"success": False, "error": "Email is required for login"})
+
+        try:
+            user, created = models.User.objects.get_or_create(email=email, defaults={
+                "name": name,
+            })
+
+            if created:
+                user.set_unusable_password()
+                user.save()
+
+            user = authenticate(request, email=user.email)
+            if user:
+                login(request, user)
+                return JsonResponse({"success": True, "message": "User logged in successfully", "user": {
+                    "email": user.email,
+                }})
+
+            return JsonResponse({"success": False, "error": "Authentication failed"})
+
+        except Exception as e:
+            return JsonResponse({"success": False, "error": "An error occurred", "details": str(e)})
+
+    return JsonResponse({"success": False, "error": "Invalid request method"})
